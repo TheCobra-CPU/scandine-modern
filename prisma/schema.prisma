@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+}
+
+enum OrderStatus {
+  NEW
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  QR
+}
+
+model DiningTable {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  kind      String       @default("STANDARD")
+  seats     Int          @default(4)
+  qrToken   String       @unique @default(cuid())
+  status    TableStatus  @default(AVAILABLE)
+  sessions  DiningSession[]
+  createdAt DateTime     @default(now())
+}
+
+model DiningSession {
+  id       String       @id @default(cuid())
+  tableId  String
+  table    DiningTable  @relation(fields: [tableId], references: [id])
+  openedAt DateTime     @default(now())
+  closedAt DateTime?
+  orders   Order[]
+  payments Payment[]
+}
+
+model Category {
+  id    String     @id @default(cuid())
+  name  String     @unique
+  items MenuItem[]
+}
+
+model MenuItem {
+  id          String      @id @default(cuid())
+  name        String
+  description String      @default("")
+  price       Decimal     @db.Decimal(10, 2)
+  available   Boolean     @default(true)
+  popular     Boolean     @default(false)
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime    @default(now())
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   DiningSession @relation(fields: [sessionId], references: [id])
+  status    OrderStatus @default(NEW)
+  notes     String      @default("")
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2)
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   DiningSession @relation(fields: [sessionId], references: [id])
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod
+  reference String        @default("")
+  createdAt DateTime      @default(now())
+}
+
+
+enum StaffRole {
+  ADMIN
+  KITCHEN
+  SERVICE
+}
+
+model StaffUser {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         StaffRole
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
